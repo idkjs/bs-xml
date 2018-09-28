@@ -1,6 +1,6 @@
 {
-  "name": "bs-xml",
-  "version": "0.1.0",
+  "name": "@zpnester/bs-xml",
+  "version": "0.1.4",
   "sources": [
     {
       "dir": "src",
@@ -16,7 +16,7 @@
     "in-source": true
   },
   "suffix": ".bs.js",
-  "bs-dependencies": [
+  "bs-dev-dependencies": [
     "@glennsl/bs-jest"
   ],
   "warnings": {
