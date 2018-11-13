@@ -140,7 +140,7 @@ let parse: string => Result.t(xml_node, string) =
       let errorMessage =
         switch (doc->querySelector("div")->Js.Nullable.toOption) {
         | Some(div) => div->textContent
-        | None => "Failed to parse XMl"
+        | None => "Failed to parse XML"
         };
       Error(errorMessage);
     };
