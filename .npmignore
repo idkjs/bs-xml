@@ -30,5 +30,8 @@ node_modules
 
 /test
 /samples
+/test_dist
+/static
+webpack.config.js
 jest.config.js
 package-lock.json

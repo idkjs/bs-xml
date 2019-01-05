@@ -1,6 +1,6 @@
 {
   "name": "@zpnester/bs-xml",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/zpnester/bs-xml.git"
@@ -15,16 +15,26 @@
     "build": "bsb -make-world",
     "watch": "bsb -make-world -w",
     "test:watch": "jest --watchAll",
-    "test": "jest"
+    "test": "jest",
+    "webpack-dev-server": "webpack-dev-server",
+    "start": "concurrently --raw npm:watch npm:webpack-dev-server"
   },
   "keywords": [
     "BuckleScript",
-    "XML"
+    "DOMParser",
+    "XML",
+    "browser"
   ],
   "license": "MIT",
   "devDependencies": {
-    "@glennsl/bs-jest": "^0.4.4",
-    "bs-platform": "^4.0.5",
-    "jest": "^23.6.0"
+    "@glennsl/bs-jest": "^0.4.6",
+    "bs-platform": "^4.0.7",
+    "concurrently": "^4.1.0",
+    "copy-webpack-plugin": "^4.6.0",
+    "html-webpack-plugin": "^3.2.0",
+    "jest": "^23.6.0",
+    "webpack": "^4.28.3",
+    "webpack-cli": "^3.2.0",
+    "webpack-dev-server": "^3.1.14"
   }
 }

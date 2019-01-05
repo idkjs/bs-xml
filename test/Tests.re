@@ -1,117 +1,250 @@
-open Jest;
-open Expect;
 open Belt;
-open Xml;
+open Expect_;
 
-let getElementNodeExn = (node: xml_node) =>
-  switch (node) {
-  | ElementNode(en) => en
-  | _ => failwith("Not an element node")
+let itunes = "http://www.itunes.com/dtds/podcast-1.0.dtd";
+
+module Item = {
+  type t = {
+    title: string,
+    itunesTitle: option(string),
+    episodeType: string,
   };
 
-let isElementNode = (node: xml_node) =>
-  switch (node) {
-  | ElementNode(_) => true
-  | _ => false
+  let decode = elem => {
+    Xml.Decode.{
+      title: elem |> child("title", ~namespace=None, text),
+      itunesTitle:
+        elem |> optional(child("title", ~namespace=Some(itunes), text)),
+      episodeType: elem |> child("episodeType", text),
+    };
+  };
+};
+
+module Channel = {
+  type t = {
+    items: array(Item.t),
+    title: string,
   };
 
-let expectToEqual: ('a, 'a) => unit = [%raw
-  {|
-    function(left, right) {
-        expect(left).toEqual(right);
-    }
-|}
-];
+  let decode = elem => {
+    Xml.Decode.{
+      items: elem |> children("item", Item.decode),
+      title: elem |> child("title", text),
+    };
+  };
+};
 
-let readFile: string => string = [%raw
-  {|
-    function(path) {
-        return require("fs").readFileSync(path, { encoding: "utf8"});
-    }
-  |}
-];
+module Rss = {
+  type t = {channel: Channel.t};
 
-describe("Invalid sample", () =>
-  test("Cannot be parsed", () => {
-    let str = "<xml>";
-    let xml = Xml.parse(str);
-    expect(xml->Result.isError) |> toEqual(true);
-  })
-);
+  let decode = elem => {
+    Xml.Decode.(
+      {
+        if (elem |> name != "rss") {
+          raise(DecodeError("invalid root"));
+        };
 
-describe("Sample 1", () => {
+        {channel: elem |> child("channel", Channel.decode)};
+      }
+    );
+  };
+};
+
+let testRss = () => {
+  let p = Xml.DomParser.make();
+
+  let str = Samples.rss1;
+  let res = p->Xml.DomParser.parseXml(str);
+  let elem = res->Result.getExn;
+  let rss = elem->Rss.decode;
+  open Rss;
+  open Channel;
+
+  expectToEqual(rss.channel.title, "Windows Weekly (MP3)");
+  expectToEqual(rss.channel.items->Array.length, 10);
+  expectToEqual(
+    rss.channel.items->Array.get(0)->Option.getExn.Item.title,
+    "WW 588: Live from Ignite!",
+  );
+  expectToEqual(
+    rss.channel.items->Array.get(0)->Option.getExn.Item.itunesTitle,
+    Some("Live from Ignite!"),
+  );
+  expectToEqual(
+    rss.channel.items->Array.get(0)->Option.getExn.Item.episodeType,
+    "full",
+  );
+};
+
+module Sample1 = {
+  type t = {
+    attr1: string,
+    attr99: option(string),
+    item1Text: string,
+    item2Text: string,
+    attr2: string,
+    attr3: option(string),
+    text: string,
+  };
+
+  let decode = elem => {
+    Xml.Decode.{
+      attr1: elem |> attribute("attr1"),
+      attr99: elem |> optional(attribute("attr99")),
+      item1Text: elem |> child("item1", text),
+      item2Text: elem |> child("item2", e => text(e)->Js.String.trim),
+      attr2: elem |> child("item2", attribute("attr2")),
+      attr3: elem |> optional(child("item2", attribute("attr3"))),
+      text: elem |> child("item3", e => text(e)->Js.String.trim),
+    };
+  };
+};
+
+let testSample1 = () => {
+  open Sample1;
+
   let str = {|
-        <root attr1="value1">
-            <item1 />
-            <item2 attr2="value2" attr3="value3">
-                Str 1
-            </item2>
-            <![CDATA[ Str 2 ]]>
-        </root>
-    |};
-  let xml = Xml.parse(str);
+            <root attr1="value1">
+                <item1 />
+                <item2 attr2="value2" attr3="value3">
+                    Str 1
+                </item2>
+                <item3>
+                  <![CDATA[ Str 2 ]]>
+                </item3>
+            </root>
+        |};
+  let p = Xml.DomParser.make();
 
-  let expected =
-    ElementNode({
-      name: "root",
-      attributes: [("attr1", "value1")],
-      children: [
-        ElementNode({name: "item1", attributes: [], children: []}),
-        ElementNode({
-          name: "item2",
-          attributes: [("attr2", "value2"), ("attr3", "value3")],
-          children: [TextNode("Str 1")],
-        }),
-        CDataNode(" Str 2 "),
-      ],
-    });
+  let res = p->Xml.DomParser.parseXml(str);
 
-  test("Can be parsed", () =>
-    expect(xml |> Result.getExn) |> toEqual(expected)
-  );
-});
+  let expected = {
+    attr1: "value1",
+    attr99: None,
+    item1Text: "",
+    item2Text: "Str 1",
+    attr2: "value2",
+    attr3: Some("value3"),
+    text: "Str 2",
+  };
+  expectToEqual(res->Result.getExn->decode, expected);
+};
 
-describe("RSS sample", () => {
-  let str = readFile("samples/ww.xml");
-  let xml = Xml.parse(str);
+let testInvalidSample = () => {
+  let str = "<xml>";
+  let p = Xml.DomParser.make();
 
-  test("Can be parsed", () =>
-    expect(xml |> Result.isOk) |> toBe(true)
-  );
+  let xml = p->Xml.DomParser.parseXml(str);
+  expectToEqual(xml->Result.isError, true);
+};
 
-  test("Contains 10 items", () => {
-    let rss = xml->Result.getExn;
-    let rss = rss->getElementNodeExn;
+type line = {
+  start: point,
+  end_: point,
+  thickness: option(int),
+}
+and point = {
+  x: int,
+  y: int,
+};
 
-    expectToEqual(rss.name, "rss");
+module Decode = {
+  let point = elem =>
+    Xml.Decode.{
+      x:
+        elem
+        |> either(
+             child("x", text)->andThen(int),
+             attribute("x")->andThen(int),
+           ),
+      y:
+        elem
+        |> either(
+             child("y", text)->andThen(int),
+             attribute("y")->andThen(int),
+           ),
+    };
 
-    let channel = rss.children->List.getExn(0)->getElementNodeExn;
-    expectToEqual(channel.name, "channel");
+  let line = elem =>
+    Xml.Decode.{
+      start: elem |> child("start", point),
+      end_: elem |> child("end", point),
+      thickness: elem |> optional(child("thickness", text->andThen(int))),
+    };
+};
 
-    let itemsLength =
-      channel.children
-      ->List.reduce(0, (c, x) =>
-          switch (x) {
-          | ElementNode({name: "item"}) => c + 1
-          | _ => c
-          }
-        );
+let data = {|
+<line>
+    <start>
+        <x>10</x>
+        <y>20</y>
+    </start>
+    <end x="30">
+        <y>40</y>
+    </end>
+</line>
+|};
 
-    expect(itemsLength) |> toEqual(10);
-  });
-});
+let p = Xml.DomParser.make();
 
-describe("Readme example", () =>
-  test("Can be parsed", () => {
-    let result = Xml.parse("<root><item>Item 1</item></root>");
-    let item =
-      switch (result) {
-      | Result.Ok(
-          ElementNode({name: "root", children: [ElementNode({name: "item", children: [TextNode(item1)]})]}),
-        ) =>
-        Some(item1)
-      | _ => None
-      };
-    expect(item) |> toEqual(Some("Item 1"));
-  })
-);
+let testReadme1 = () => {
+  let line = p->Xml.DomParser.parseXml(data)->Belt.Result.getExn->Decode.line;
+  expectToEqual(line.start.x, 10);
+  expectToEqual(line.start.y, 20);
+  expectToEqual(line.end_.x, 30);
+  expectToEqual(line.end_.y, 40);
+  expectToEqual(line.thickness, None);
+};
+
+module T1 = {
+  type t = {
+    a: float,
+    b: option(float),
+    c: bool,
+    d: option(bool),
+    e: option(string),
+    f: Js.Date.t,
+    g: string,
+    h: string,
+    i: float,
+  };
+
+  let decode = elem =>
+    Xml.Decode.{
+      a: elem |> attribute("a")->andThen(float),
+      b: elem |> optional(attribute("b")->andThen(float)),
+      c: elem |> child("c", text->andThen(bool)),
+      d: elem |> optional(attribute("d")->andThen(bool)),
+      e: elem |> optional(attribute("eee")),
+      f: elem |> attribute("f")->andThen(date),
+      g:
+        elem |> oneOf([attribute("g"), attribute("gg"), attribute("ggg")]),
+      h: elem |> child("h", text)->withDefault("default"),
+      i: elem |> child("i", text)->andThen(float),
+    };
+};
+
+let testFloat = () => {
+  let line =
+    p
+    ->Xml.DomParser.parseXml(
+        {|<line a="30" b="a" d="false" f="12-13-2015" gg="hello">
+        <c>true</c>
+        <i>25</i>
+    </line>
+    |},
+      )
+    ->Belt.Result.getExn
+    ->T1.decode;
+  expectToEqual(line.a, 30.0);
+  expectToEqual(line.b, None);
+  expectToEqual(line.c, true);
+  expectToEqual(line.d, Some(false));
+  expectToEqual(line.e, None);
+  expectToEqual(line.f->Js.Date.getFullYear, 2015.0);
+  expectToEqual(line.f->Js.Date.getMonth, 11.0);
+  expectToEqual(line.f->Js.Date.getDate, 13.0);
+  expectToEqual(line.g, "hello");
+  expectToEqual(line.h, "default");
+  expectToEqual(line.i, 25.0);
+};
