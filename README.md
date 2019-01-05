@@ -57,6 +57,6 @@ let data = {|
 |};
 
 let parser = Xml.DomParser.make();
-let result = parser->Xml.DomParser.parseXml(data);
+let line = parser->Xml.DomParser.parseXml(data)->Belt.Result.getExn->Decode.line;
 |};
 ```
