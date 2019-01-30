@@ -36,3 +36,10 @@ describe("Optionals", () =>
     expect(true) |> toEqual(true);
   })
 );
+
+describe("HTML", () =>
+  test("should work", () => {
+    testHtml1();
+    expect(true) |> toEqual(true);
+  })
+);

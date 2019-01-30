@@ -248,3 +248,29 @@ let testFloat = () => {
   expectToEqual(line.h, "default");
   expectToEqual(line.i, 25.0);
 };
+
+let testHtml1 = () => {
+  let html = {|<html>
+  <head>
+    <title>the title</title>
+  </head>
+  <body>
+  <div>
+  <span>the body</span>
+  </div>
+  </body>
+  </html>
+  |};
+
+  let res = p->Xml.DomParser.parseHtml(html);
+  let root = res->Belt.Result.getExn;
+
+  open Xml.Decode;
+
+  let body = root |> child("body", text) |> Js.String.trim;
+  let title = root |> child("head", child("title", text))
+  expectToEqual(title, "the title")
+  expectToEqual(body, "the body");
+  expectToEqual(root->name, "html");
+  expectToEqual(root->namespace, Some("http://www.w3.org/1999/xhtml"));
+};
