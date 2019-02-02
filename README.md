@@ -62,3 +62,9 @@ let data = {|
 let parser = Xml.DomParser.make();
 let line = parser->Xml.DomParser.parseXml(data)->Belt.Result.getExn->Decode.line;
 ```
+
+## Install
+
+```
+npm i @zpnester/bs-xml
+```
