@@ -7,7 +7,11 @@ type doc;
 module Attr = {
   type t;
   /* [@bs.get] external name: t => string = "name"; */
+  /* [@bs.get] external localName: t => string = "localName"; */
   [@bs.get] external value: t => string = "value";
+
+  /* [@bs.get] [@bs.return nullable]
+  external namespaceURI: t => option(string) = "namespaceURI"; */
 };
 
 module NodeList = {
@@ -29,13 +33,14 @@ module NamedNodeMap = {
 
   [@bs.send] [@bs.return nullable]
   external getNamedItem: (t, string) => option(Attr.t) = "getNamedItem";
+
+  [@bs.send] [@bs.return nullable]
+  external getNamedItemNS:
+    (t, ~namespace: option(string), ~localName: string) => option(Attr.t) =
+    "getNamedItemNS";
 };
 
 module NodeLike = (M: {type t;}) => {
-  /* [@bs.get] [@bs.return nullable]
-     external textContent: M.t => option(string) = "textContent"; */
-  /* [@bs.get] external nodeName: M.t => string = "nodeName"; */
-
   [@bs.get] external childNodes: M.t => NodeList.t = "childNodes";
 
   let asElement_: M.t => Js.Nullable.t(elem) = [%raw
@@ -66,9 +71,9 @@ module Node = {
 module ElementLike = (M: {type t;}) => {
   [@bs.get] external attributes: M.t => NamedNodeMap.t = "attributes";
 
+  [@bs.get] external localName: M.t => string = "localName";
   [@bs.get] [@bs.return nullable]
   external namespaceURI: M.t => option(string) = "namespaceURI";
-  [@bs.get] external localName: M.t => string = "localName";
 };
 
 /* _ to avoid name clash in 'instanceof Element' */
@@ -137,12 +142,25 @@ module Decode = {
 
   exception DecodeError(string);
 
-  let attribute = (name: string, element: Dom.element) => {
+  let attribute =
+      (
+        name: string,
+        ~namespace: option(option(string))=?,
+        element: Dom.element,
+      ) => {
     let element = element->Element_.fromDom;
     let attrs = element->Element_.attributes;
-    switch (attrs->NamedNodeMap.getNamedItem(name)) {
-    | Some(attr) => attr->Attr.value
-    | None => raise(DecodeError(name ++ " attribute expected"))
+    switch (namespace) {
+    | Some(namespace) =>
+      switch (attrs->NamedNodeMap.getNamedItemNS(~namespace, ~localName=name)) {
+      | Some(attr) => attr->Attr.value
+      | None => raise(DecodeError(name ++ " attribute expected"))
+      }
+    | None =>
+      switch (attrs->NamedNodeMap.getNamedItem(name)) {
+      | Some(attr) => attr->Attr.value
+      | None => raise(DecodeError(name ++ " attribute expected"))
+      }
     };
   };
 
@@ -151,9 +169,36 @@ module Decode = {
     element->Element_.localName;
   };
 
+  let withName = (element: Dom.element, name: string) => {
+    let element_ = element->Element_.fromDom;
+    if (element_->Element_.localName != name) {
+      raise(
+        DecodeError(
+          name ++ " element expected, got " ++ element_->Element_.localName,
+        ),
+      );
+    };
+    element;
+  };
+
   let namespace = (element: Dom.element) => {
     let element = element->Element_.fromDom;
     element->Element_.namespaceURI;
+  };
+
+  let withNamespace = (element: Dom.element, namespace: option(string)) => {
+    let element_ = element->Element_.fromDom;
+    if (element_->Element_.namespaceURI != namespace) {
+      raise(
+        DecodeError(
+          "namespace '" 
+          ++ namespace->Belt.Option.getWithDefault("")
+          ++ "' expected, got '"
+          ++ element_->Element_.namespaceURI->Belt.Option.getWithDefault("") ++ "'",
+        ),
+      );
+    };
+    element;
   };
 
   let text = (element: Dom.element) => {

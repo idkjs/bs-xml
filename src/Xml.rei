@@ -15,12 +15,14 @@ module DomParser: {
 module Decode: {
   exception DecodeError(string);
 
+  let withName: (Dom.element, string) => Dom.element;
+  let withNamespace: (Dom.element, option(string)) => Dom.element;
+
   type decoder('a) = Dom.element => 'a;
 
-  let attribute: string => decoder(string);
+  let attribute: (string, ~namespace: option(string)=?) => decoder(string);
 
   let name: decoder(string);
-
   let namespace: decoder(option(string));
 
   let text: decoder(string);

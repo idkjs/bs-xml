@@ -2,7 +2,7 @@
 
 # bs-xml
 
-Parse XML with DOMParser
+DOM Document decoder for BuckleScript
 
 API is similar to [@glennsl/bs-json](https://github.com/glennsl/bs-json)
 
@@ -36,16 +36,19 @@ module Decode = {
            ),
     };
 
-  let line = elem =>
-    Xml.Decode.{
+  let line = elem => {
+    open Xml.Decode;
+    let elem = elem->withName("line")->withNamespace(Some("geometry"));
+    {
       start: elem |> child("start", point),
       end_: elem |> child("end", point),
       thickness: elem |> optional(child("thickness", text->andThen(int))),
     };
+  };
 };
 
 let data = {|
-<line>
+<g:line xmlns:g="geometry">
     <start>
         <x>10</x>
         <y>20</y>
@@ -53,7 +56,7 @@ let data = {|
     <end x="30">
         <y>40</y>
     </end>
-</line>
+</g:line>
 |};
 
 let parser = Xml.DomParser.make();

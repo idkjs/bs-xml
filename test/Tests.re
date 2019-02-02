@@ -165,16 +165,19 @@ module Decode = {
            ),
     };
 
-  let line = elem =>
-    Xml.Decode.{
+  let line = elem => {
+    open Xml.Decode;
+    let elem = elem->withName("line")->withNamespace(Some("geometry"));
+    {
       start: elem |> child("start", point),
       end_: elem |> child("end", point),
       thickness: elem |> optional(child("thickness", text->andThen(int))),
     };
+  };
 };
 
 let data = {|
-<line>
+<g:line xmlns:g="geometry">
     <start>
         <x>10</x>
         <y>20</y>
@@ -182,7 +185,8 @@ let data = {|
     <end x="30">
         <y>40</y>
     </end>
-</line>
+</g:line>
+
 |};
 
 let p = Xml.DomParser.make();
@@ -264,12 +268,11 @@ let testHtml1 = () => {
 
   let res = p->Xml.DomParser.parseHtml(html);
   let root = res->Belt.Result.getExn;
-
   open Xml.Decode;
 
   let body = root |> child("body", text) |> Js.String.trim;
-  let title = root |> child("head", child("title", text))
-  expectToEqual(title, "the title")
+  let title = root |> child("head", child("title", text));
+  expectToEqual(title, "the title");
   expectToEqual(body, "the body");
   expectToEqual(root->name, "html");
   expectToEqual(root->namespace, Some("http://www.w3.org/1999/xhtml"));
