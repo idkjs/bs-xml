@@ -215,3 +215,12 @@ let bool = (str, _: Dom.element) =>
   | Invalid_argument("bool_of_string") =>
     raise(DecodeError("bool expected"))
   };
+
+let childElements = (elem: Dom.element) => {
+  elem
+  ->Xml__.Element_.fromDom
+  ->Xml__.Element_.childNodes
+  ->Js.Array.from
+  ->Belt.Array.keepMap(Xml__.Element_.asElement)
+  ->Belt.Array.map(Xml__.Element_.asDom);
+};

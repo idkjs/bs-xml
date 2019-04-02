@@ -277,3 +277,56 @@ let testHtml1 = () => {
   expectToEqual(root->name, "html");
   expectToEqual(root->namespace, Some("http://www.w3.org/1999/xhtml"));
 };
+
+type subElements =
+  | SubElementOne
+  | SubElementTwo
+  | SubElementThree;
+
+let testIssue1 = () => {
+  open Xml.Decode;
+
+  let input = {|
+  <parent-tag>
+    <subelement-one/>
+    <subelement-two/>
+    <subelement-three/>
+  </parent-tag>
+  |};
+
+  let input2 = {|
+  <parent-tag>
+    <subelement-two/>
+  </parent-tag>
+  |};
+
+  let input3 = {|
+  <parent-tag>
+  </parent-tag>
+  |};
+
+  let parser = Xml.DomParser.make();
+
+  let parseParent = parent =>
+    parent
+    ->childElements
+    ->Belt.Array.map(elem =>
+        switch (elem->name) {
+        | "subelement-one" => SubElementOne
+        | "subelement-two" => SubElementTwo
+        | "subelement-three" => SubElementThree
+        | _ => raise(DecodeError(""))
+        }
+      );
+
+  let res = parser->Xml.DomParser.parseXml(input)->Result.getExn->parseParent;
+  expectToEqual(res, [|SubElementOne, SubElementTwo, SubElementThree|]);
+
+  let res =
+    parser->Xml.DomParser.parseXml(input2)->Result.getExn->parseParent;
+  expectToEqual(res, [|SubElementTwo|]);
+
+  let res =
+    parser->Xml.DomParser.parseXml(input3)->Result.getExn->parseParent;
+  expectToEqual(res, [||]);
+};
