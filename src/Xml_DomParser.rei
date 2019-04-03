@@ -1,6 +1,8 @@
 type t;
 
-let parseFromString: (t, string, string) => Dom.document;
+[@bs.send]
+external parseFromString: (t, string, string) => Dom.document =
+  "parseFromString";
 
 let parse: (t, string, string) => Belt.Result.t(Dom.element, string);
 

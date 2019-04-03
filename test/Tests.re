@@ -12,12 +12,14 @@ module Item = {
 
   let decode = elem => {
     Xml.Decode.{
-      title: elem |> child("title", ~namespace=None, text),
+      title: elem |> child(select("title", ~namespace=None), text),
       itunesTitle:
-        elem |> optional(child("title", ~namespace=Some(itunes), text)),
-      episodeType: elem |> child("episodeType", text),
+        elem
+        |> child(select("title", ~namespace=Some(itunes)), text)->optional,
+      episodeType: elem |> child(select("episodeType"), text),
     };
   };
+  let decode = Xml.Decode.withName("item", decode);
 };
 
 module Channel = {
@@ -28,26 +30,20 @@ module Channel = {
 
   let decode = elem => {
     Xml.Decode.{
-      items: elem |> children("item", Item.decode),
-      title: elem |> child("title", text),
+      items: elem |> children(select("item"), Item.decode),
+      title: elem |> child(select("title"), text),
     };
   };
 };
 
 module Rss = {
   type t = {channel: Channel.t};
+  open Xml.Decode;
 
   let decode = elem => {
-    Xml.Decode.(
-      {
-        if (elem |> name != "rss") {
-          raise(DecodeError("invalid root"));
-        };
-
-        {channel: elem |> child("channel", Channel.decode)};
-      }
-    );
+    {channel: elem |> child(select("channel"), Channel.decode)};
   };
+  let decode = Xml.Decode.withName("rss", decode);
 };
 
 let testRss = () => {
@@ -91,11 +87,12 @@ module Sample1 = {
     Xml.Decode.{
       attr1: elem |> attribute("attr1"),
       attr99: elem |> optional(attribute("attr99")),
-      item1Text: elem |> child("item1", text),
-      item2Text: elem |> child("item2", e => text(e)->Js.String.trim),
-      attr2: elem |> child("item2", attribute("attr2")),
-      attr3: elem |> optional(child("item2", attribute("attr3"))),
-      text: elem |> child("item3", e => text(e)->Js.String.trim),
+      item1Text: elem |> child(select("item1"), text),
+      item2Text:
+        elem |> child(select("item2"), e => text(e)->Js.String.trim),
+      attr2: elem |> child(select("item2"), attribute("attr2")),
+      attr3: elem |> child(select("item2"), attribute("attr3"))->optional,
+      text: elem |> child(select("item3"), e => text(e)->Js.String.trim),
     };
   };
 };
@@ -154,26 +151,30 @@ module Decode = {
       x:
         elem
         |> either(
-             child("x", text)->andThen(int),
-             attribute("x")->andThen(int),
+             child(select("x"), text->map(int)),
+             attribute("x")->map(int),
            ),
       y:
         elem
         |> either(
-             child("y", text)->andThen(int),
-             attribute("y")->andThen(int),
+             child(select("y"), text->map(int)),
+             attribute("y")->map(int),
            ),
     };
 
-  let line = elem => {
-    open Xml.Decode;
-    let elem = elem->withName("line")->withNamespace(Some("geometry"));
-    {
-      start: elem |> child("start", point),
-      end_: elem |> child("end", point),
-      thickness: elem |> optional(child("thickness", text->andThen(int))),
-    };
-  };
+  let line =
+    (
+      elem => {
+        Xml.Decode.{
+          start: elem |> child(select("start"), point),
+          end_: elem |> child(select("end"), point),
+          thickness:
+            elem |> child(select("thickness"), text)->optional->mapOptional(int),
+        };
+      }
+    )
+    |> Xml.Decode.withName("line")
+    |> Xml.Decode.withNamespace(Some("geometry"));
 };
 
 let data = {|
@@ -215,16 +216,16 @@ module T1 = {
 
   let decode = elem =>
     Xml.Decode.{
-      a: elem |> attribute("a")->andThen(float),
-      b: elem |> optional(attribute("b")->andThen(float)),
-      c: elem |> child("c", text->andThen(bool)),
-      d: elem |> optional(attribute("d")->andThen(bool)),
-      e: elem |> optional(attribute("eee")),
-      f: elem |> attribute("f")->andThen(date),
+      a: elem |> attribute("a")->map(float),
+      b: elem |> attribute("b")->map(float)->optional,
+      c: elem |> child(select("c"), text->map(bool)),
+      d: elem |> attribute("d")->map(bool)->optional,
+      e: elem |> attribute("eee")->optional,
+      f: elem |> attribute("f")->map(date),
       g:
         elem |> oneOf([attribute("g"), attribute("gg"), attribute("ggg")]),
-      h: elem |> child("h", text)->withDefault("default"),
-      i: elem |> child("i", text)->andThen(float),
+      h: elem |> child(select("h"), text)->withDefault("default"),
+      i: elem |> child(select("i"), text)->map(float),
     };
 };
 
@@ -270,8 +271,8 @@ let testHtml1 = () => {
   let root = res->Belt.Result.getExn;
   open Xml.Decode;
 
-  let body = root |> child("body", text) |> Js.String.trim;
-  let title = root |> child("head", child("title", text));
+  let body = root |> child(select("body"), text) |> Js.String.trim;
+  let title = root |> child(select("head"), child(select("title"), text));
   expectToEqual(title, "the title");
   expectToEqual(body, "the body");
   expectToEqual(root->name, "html");
@@ -284,8 +285,6 @@ type subElements =
   | SubElementThree;
 
 let testIssue1 = () => {
-  open Xml.Decode;
-
   let input = {|
   <parent-tag>
     <subelement-one/>
@@ -305,28 +304,79 @@ let testIssue1 = () => {
   </parent-tag>
   |};
 
+  let input4 = {|
+  <parent-tag>
+    <other>123</other>
+    <subelement-two/>
+  </parent-tag>
+  |};
+
   let parser = Xml.DomParser.make();
 
-  let parseParent = parent =>
-    parent
-    ->childElements
-    ->Belt.Array.map(elem =>
-        switch (elem->name) {
-        | "subelement-one" => SubElementOne
-        | "subelement-two" => SubElementTwo
-        | "subelement-three" => SubElementThree
-        | _ => raise(DecodeError(""))
-        }
-      );
+  let parseSubelements = elem => {
+    Xml.Decode.(
+      elem
+      |> oneOf([
+           ok(SubElementOne) |> withName("subelement-one"),
+           ok(SubElementTwo) |> withName("subelement-two"),
+           ok(SubElementThree) |> withName("subelement-three"),
+         ])
+    );
+  };
 
-  let res = parser->Xml.DomParser.parseXml(input)->Result.getExn->parseParent;
+  // let parseSubelements2 = elem =>
+  //   switch (elem->name) {
+  //   | "subelement-one" => SubElementOne
+  //   | "subelement-two" => SubElementTwo
+  //   | "subelement-three" => SubElementThree
+  //   | _ => raise(DecodeError("fail"))
+  //   };
+
+  let parseOther = elem => {
+    open Xml.Decode;
+    let other = elem->childElements |> Js.Array.find(e => e->name == "other");
+    let other = other->requireSome;
+    other->text->int;
+  };
+
+  let parseOther2 = elem => {
+    Xml.Decode.(elem |> child(select("other"), text)->map(int));
+  };
+
+  let parseInput =
+    (
+      elem => {
+        Xml.Decode.
+          (elem |> children(selectAny, parseSubelements));
+          // elem |> children(selectAny, parseSubelements2)
+      }
+    )
+    |> Xml.Decode.withName("parent-tag");
+
+  let parseInputOpt =
+    (
+      elem => {
+        Xml.Decode.(elem |> children(selectAny, optional(parseSubelements)));
+      }
+    )
+    |> Xml.Decode.withName("parent-tag");
+  open Xml.DomParser;
+
+  let res = parser->parseXml(input)->Result.getExn->parseInput;
   expectToEqual(res, [|SubElementOne, SubElementTwo, SubElementThree|]);
 
-  let res =
-    parser->Xml.DomParser.parseXml(input2)->Result.getExn->parseParent;
+  let res = parser->parseXml(input2)->Result.getExn->parseInput;
   expectToEqual(res, [|SubElementTwo|]);
 
-  let res =
-    parser->Xml.DomParser.parseXml(input3)->Result.getExn->parseParent;
+  let res = parser->parseXml(input3)->Result.getExn->parseInput;
   expectToEqual(res, [||]);
+
+  let res = parser->parseXml(input4)->Result.getExn->parseInputOpt;
+  expectToEqual(res, [|None, Some(SubElementTwo)|]);
+
+  let res = parser->parseXml(input4)->Result.getExn->parseOther;
+  expectToEqual(res, 123);
+
+  let res = parser->parseXml(input4)->Result.getExn->parseOther2;
+  expectToEqual(res, 123);
 };

@@ -25,26 +25,30 @@ module Decode = {
       x:
         elem
         |> either(
-             child("x", text)->andThen(int),
-             attribute("x")->andThen(int),
+             child(select("x"), text->map(int)),
+             attribute("x")->map(int),
            ),
       y:
         elem
         |> either(
-             child("y", text)->andThen(int),
-             attribute("y")->andThen(int),
+             child(select("y"), text->map(int)),
+             attribute("y")->map(int),
            ),
     };
 
-  let line = elem => {
-    open Xml.Decode;
-    let elem = elem->withName("line")->withNamespace(Some("geometry"));
-    {
-      start: elem |> child("start", point),
-      end_: elem |> child("end", point),
-      thickness: elem |> optional(child("thickness", text->andThen(int))),
-    };
-  };
+  let line =
+    (
+      elem => {
+        Xml.Decode.{
+          start: elem |> child(select("start"), point),
+          end_: elem |> child(select("end"), point),
+          thickness:
+            elem |> child(select("thickness"), text)->optional->mapOptional(int),
+        };
+      }
+    )
+    |> Xml.Decode.withName("line")
+    |> Xml.Decode.withNamespace(Some("geometry"));
 };
 
 let data = {|

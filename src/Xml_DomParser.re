@@ -1,24 +1,21 @@
-open Xml__;
 open Belt;
 
 type t;
 
 [@bs.send]
-external parseFromString_: (t, string, string) => Doc.t = "parseFromString";
-
-let parseFromString = (self, text, type_) => {
-  parseFromString_(self, text, type_)->Doc.asDom;
-};
+external parseFromString: (t, string, string) => Dom.document =
+  "parseFromString";
 
 let parse = (self, text, type_): Result.t(Dom.element, string) => {
-  let doc = self->parseFromString_(text, type_);
+  let doc = self->parseFromString(text, type_);
 
-  switch (doc->Doc.querySelector("parsererror")) {
-  | Some(errorElement) => Error(errorElement->Element_.nodeTextContent)
+  switch (doc->Xml_Document.querySelector("parsererror")) {
+  | Some(errorElement) => Error(errorElement->Xml_Element.textContent)
   | None =>
-    let nodes = doc->Doc.childNodes->Js.Array.from;
-    switch (nodes->Array.keepMap(Node.asElement)->Array.get(0)) {
-    | Some(root) => Ok(root->Element_.asDom)
+    let nodes =
+      doc->Xml_Document.childNodes->Xml_NodeList.asArrayLike->Js.Array.from;
+    switch (nodes->Array.keepMap(Xml_Node.asElement)->Array.get(0)) {
+    | Some(root) => Ok(root)
     | None => Error("root element missing")
     };
   };

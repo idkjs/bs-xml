@@ -1,7 +1,7 @@
 {
   "name": "@zpnester/bs-xml",
   "description": "DOM Document decode API for BuckleScript",
-  "version": "0.2.4",
+  "version": "0.3.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/zpnester/bs-xml.git"

@@ -43,3 +43,10 @@ describe("HTML", () =>
     expect(true) |> toEqual(true);
   })
 );
+
+describe("Issue 1", () =>
+  test("should work", () => {
+    testIssue1();
+    expect(true) |> toEqual(true);
+  })
+);
