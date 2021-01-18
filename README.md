@@ -6,6 +6,8 @@ DOM Document decoder for BuckleScript
 
 API is similar to [@glennsl/bs-json](https://github.com/glennsl/bs-json)
 
+Update of the archived [@zpnester/bs-xml](https://github.com/zpnester/bs-xml)
+
 ## Example
 
 ```reason
