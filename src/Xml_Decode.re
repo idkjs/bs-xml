@@ -3,6 +3,7 @@ open Belt;
 type decoder('a) = Dom.element => 'a;
 
 exception DecodeError(string);
+exception DecodeError2(string, string);
 
 // Element properties with different names
 
@@ -93,7 +94,7 @@ let withNamespace =
 };
 
 let optional = (decoder: decoder('a), element) =>
-  try (Some(decoder(element))) {
+  try(Some(decoder(element))) {
   | DecodeError(_) => None
   };
 
@@ -178,12 +179,12 @@ let andThen = (decoder: decoder('a), f: 'a => decoder('b), elem) => {
 };
 
 let either = (left: decoder('a), right: decoder('a), elem: Dom.element) =>
-  try (left(elem)) {
+  try(left(elem)) {
   | DecodeError(_) => right(elem)
   };
 
 let withDefault = (decoder, default, elem: Dom.element) =>
-  try (decoder(elem)) {
+  try(decoder(elem)) {
   | DecodeError(_) => default
   };
 
@@ -196,7 +197,7 @@ let oneOf = (decoders: list(decoder('a)), elem: Dom.element) => {
   while ((result^)->Option.isNone && i^ < arr->Array.length) {
     let d = arr->Js.Array.unsafe_get(i^);
     let res =
-      try (Some(d(elem))) {
+      try(Some(d(elem))) {
       | DecodeError(_) => None
       };
     i := i^ + 1;
@@ -218,8 +219,8 @@ let float = str => {
 };
 
 let int = str =>
-  try (int_of_string(str)) {
-  | Failure("int_of_string") => raise(DecodeError("int expected"))
+  try(int_of_string(str)) {
+  | Failure(_) => raise(DecodeError("int expected"))
   };
 
 let date = str => {
@@ -231,16 +232,16 @@ let date = str => {
   };
 };
 
+// let bool = str =>
+//   str->bool_of_string ? true : raise(DecodeError("bool expected"));
 let bool = str =>
-  try (str->bool_of_string) {
-  | Invalid_argument("bool_of_string") =>
-    raise(DecodeError("bool expected"))
+  try(str->bool_of_string) {
+  | Invalid_argument(str) => raise(DecodeError2("bool expected",str))
   };
-
 let childElements = elem => {
   elem
   ->Xml_Element.childNodes
   ->Xml_NodeList.asArrayLike
   ->Js.Array.from
-  ->Belt.Array.keepMap(Xml_Element.asElement);
+  ->Belt.Array.keepMap(Xml_Element.asElement |> Obj.magic);
 };

@@ -16,7 +16,7 @@ module Item = {
       itunesTitle:
         elem
         |> child(select("title", ~namespace=Some(itunes)), text)->optional,
-      episodeType: elem |> child(select("episodeType"), text),
+      episodeType: elem |> child(select("episodeType", _), text),
     };
   };
   let decode = Xml.Decode.withName("item", decode);
@@ -30,8 +30,8 @@ module Channel = {
 
   let decode = elem => {
     Xml.Decode.{
-      items: elem |> children(select("item"), Item.decode),
-      title: elem |> child(select("title"), text),
+      items: elem |> children(select("item", _), Item.decode),
+      title: elem |> child(select("title", _), text),
     };
   };
 };
@@ -41,7 +41,7 @@ module Rss = {
   open Xml.Decode;
 
   let decode = elem => {
-    {channel: elem |> child(select("channel"), Channel.decode)};
+    {channel: elem |> child(select("channel", _), Channel.decode)};
   };
   let decode = Xml.Decode.withName("rss", decode);
 };
@@ -85,14 +85,15 @@ module Sample1 = {
 
   let decode = elem => {
     Xml.Decode.{
-      attr1: elem |> attribute("attr1"),
-      attr99: elem |> optional(attribute("attr99")),
-      item1Text: elem |> child(select("item1"), text),
+      attr1: elem |> attribute("attr1", _),
+      attr99: elem |> optional(attribute("attr99", _)),
+      item1Text: elem |> child(select("item1", _), text),
       item2Text:
-        elem |> child(select("item2"), e => text(e)->Js.String.trim),
-      attr2: elem |> child(select("item2"), attribute("attr2")),
-      attr3: elem |> child(select("item2"), attribute("attr3"))->optional,
-      text: elem |> child(select("item3"), e => text(e)->Js.String.trim),
+        elem |> child(select("item2", _), e => text(e)->Js.String.trim),
+      attr2: elem |> child(select("item2", _), attribute("attr2", _)),
+      attr3:
+        elem |> child(select("item2", _), attribute("attr3", _))->optional,
+      text: elem |> child(select("item3", _), e => text(e)->Js.String.trim),
     };
   };
 };
@@ -151,14 +152,14 @@ module Decode = {
       x:
         elem
         |> either(
-             child(select("x"), text->map(int)),
-             attribute("x")->map(int),
+             child(select("x", _), text->map(int)),
+             attribute("x", _)->map(int),
            ),
       y:
         elem
         |> either(
-             child(select("y"), text->map(int)),
-             attribute("y")->map(int),
+             child(select("y", _), text->map(int)),
+             attribute("y", _)->map(int),
            ),
     };
 
@@ -166,10 +167,13 @@ module Decode = {
     (
       elem => {
         Xml.Decode.{
-          start: elem |> child(select("start"), point),
-          end_: elem |> child(select("end"), point),
+          start: elem |> child(select("start", _), point),
+          end_: elem |> child(select("end", _), point),
           thickness:
-            elem |> child(select("thickness"), text)->optional->mapOptional(int),
+            elem
+            |> child(select("thickness", _), text)
+               ->optional
+               ->mapOptional(int),
         };
       }
     )
@@ -214,19 +218,37 @@ module T1 = {
     i: float,
   };
 
-  let decode = elem =>
-    Xml.Decode.{
-      a: elem |> attribute("a")->map(float),
-      b: elem |> attribute("b")->map(float)->optional,
-      c: elem |> child(select("c"), text->map(bool)),
-      d: elem |> attribute("d")->map(bool)->optional,
-      e: elem |> attribute("eee")->optional,
-      f: elem |> attribute("f")->map(date),
+  let decode = elem => {
+    {
+      // Xml.Decode.
+
+      a: elem |> Xml.Decode.(attribute("a", _)->map(Xml.Decode.float)),
+      b:
+        elem
+        |> Xml.Decode.(attribute("b", _)->map(Xml.Decode.float)->optional),
+      c:
+        elem
+        |> Xml.Decode.(child(Xml.Decode.select("c", _), text->map(bool))),
+      d: elem |> Xml.Decode.(attribute("d", _)->map(bool)->optional),
+      e: elem |> Xml.Decode.(attribute("eee", _)->optional),
+      f: elem |> Xml.Decode.(attribute("f", _)->map(date)),
       g:
-        elem |> oneOf([attribute("g"), attribute("gg"), attribute("ggg")]),
-      h: elem |> child(select("h"), text)->withDefault("default"),
-      i: elem |> child(select("i"), text)->map(float),
+        elem
+        |> Xml.Decode.(
+             oneOf([
+               attribute("g", _),
+               attribute("gg", _),
+               attribute("ggg", _),
+             ])
+           ),
+      h:
+        elem
+        |> Xml.Decode.(child(select("h", _), text)->withDefault("default")),
+      i:
+        elem
+        |> Xml.Decode.(child(select("i", _), text)->map(Xml.Decode.float)),
     };
+  };
 };
 
 let testFloat = () => {
@@ -271,8 +293,9 @@ let testHtml1 = () => {
   let root = res->Belt.Result.getExn;
   open Xml.Decode;
 
-  let body = root |> child(select("body"), text) |> Js.String.trim;
-  let title = root |> child(select("head"), child(select("title"), text));
+  let body = root |> child(select("body", _), text) |> Js.String.trim;
+  let title =
+    root |> child(select("head", _), child(select("title", _), text));
   expectToEqual(title, "the title");
   expectToEqual(body, "the body");
   expectToEqual(root->name, "html");
@@ -340,7 +363,7 @@ let testIssue1 = () => {
   };
 
   let parseOther2 = elem => {
-    Xml.Decode.(elem |> child(select("other"), text)->map(int));
+    Xml.Decode.(elem |> child(select("other", _), text)->map(int));
   };
 
   let parseInput =

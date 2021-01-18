@@ -9,6 +9,10 @@
     {
       "dir": "test",
       "type": "dev"
+    },
+    {
+      "dir": "example",
+      "type": "dev"
     }
   ],
   "package-specs": {
