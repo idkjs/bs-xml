@@ -1,0 +1,13 @@
+# OASIS_START
+# DO NOT EDIT (digest: a36c41af4821112cdbee6ccecec075e7)
+Uni_data
+Uni_norm
+Stringprep
+StreamError
+StanzaError
+Transport
+Xmlstream
+Sasl
+XMPP
+JID
+# OASIS_STOP

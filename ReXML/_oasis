@@ -1,0 +1,81 @@
+OASISFormat: 0.3
+Name:        erm_xmpp
+Version:     0.4
+Authors:     Anastasia Gornostaeva
+Copyrights:  (C) 2004 Anastasia Gornostaeva
+License:     BSD3
+LicenseFile: LICENCE
+Plugins:     DevFiles (0.3), META (0.3)
+BuildTools:  ocamlbuild
+
+Synopsis:    XMPP protocol implementation
+
+Library erm_xmpp
+  Path:       src
+  Modules:    UTF8,
+              Xmpp_prep_tables,
+              Xmpp_prep,
+              Punycode,
+              StreamError, 
+              StanzaError, 
+              Xmlstream, 
+              Sasl, 
+              XMPP,
+              JID,
+              Roster,
+              XEP_disco,
+              XEP_last, 
+              XEP_muc, 
+              XEP_stats, 
+              XEP_time, 
+              XEP_vcard, 
+              XEP_version,
+              XEP_xdata
+  BuildDepends: erm_xml (>= 0.3), cstruct, nocrypto
+
+Executable test
+  Path: tests
+  Build$: flag(tests)
+  Install: false
+  Custom: true
+  CompiledObject: best
+  MainIs: test.ml
+  BuildDepends: erm_xmpp, erm_treap
+
+Executable lwt_test
+  Path: tests
+  Build$: flag(tests)
+  Install: false
+  CompiledObject: best
+  MainIs: lwt_test.ml  
+  BuildDepends: erm_xmpp, lwt, tls.lwt, erm_treap
+
+Executable test_ie
+  Path: tests
+  Build$: flag(tests)
+  Install: false
+  CompiledObject: best
+  MainIs: test_ie.ml
+  BuildDepends: erm_xmpp, erm_treap  
+
+Executable punycode_test
+  Path: tests
+  Build$: flag(tests)
+  Install: false
+  CompiledObject: best
+  MainIs: punycode_test.ml
+  BuildDepends: erm_xmpp, erm_treap  
+  
+# Document api
+#   Title:      API reference
+#   InstallDir: $docdir
+#   Type: ocamlbuild (0.2)
+#   BuildTools: ocamldoc
+#   XOcamlbuildPath: .
+#   XOcamlbuildLibraries: erm_xmpp
+
+SourceRepository github
+  Type:     git
+  Location: git://github.com/ermine/xmpp.git
+  Browser:  https://github.com/ermine/xmpp
+

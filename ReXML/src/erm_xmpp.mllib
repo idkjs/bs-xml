@@ -1,0 +1,22 @@
+# OASIS_START
+# DO NOT EDIT (digest: 2d4b9ffb8eb517a55459db651bdb936f)
+UTF8
+Xmpp_prep_tables
+Xmpp_prep
+Punycode
+StreamError
+StanzaError
+Xmlstream
+Sasl
+XMPP
+JID
+Roster
+XEP_disco
+XEP_last
+XEP_muc
+XEP_stats
+XEP_time
+XEP_vcard
+XEP_version
+XEP_xdata
+# OASIS_STOP
