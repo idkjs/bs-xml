@@ -70,5 +70,5 @@ let line = parser->Xml.DomParser.parseXml(data)->Belt.Result.getExn->Decode.line
 ## Install
 
 ```
-npm i @zpnester/bs-xml
+npm i @idkjs/bs-xml
 ```
